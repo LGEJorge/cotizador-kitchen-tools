@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Cotizador Kitchen Tools</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background-color: #f8f9fa;
+    }
+    h1 {
+      text-align: center;
+      color: #0d3a5e;
+    }
+    form {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    input[type="text"], input[type="number"] {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+    label {
+      font-weight: bold;
+    }
+    .section {
+      margin-top: 30px;
+    }
+    .toggle-button {
+      background-color: #0d3a5e;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 5px;
+      font-size: 14px;
+      cursor: pointer;
+      margin-bottom: 15px;
+    }
+    .toggle-button:hover {
+      background-color: #0a2e4b;
+    }
+    .hidden {
+      display: none;
+    }
+    button[type="submit"] {
+      width: 100%;
+      padding: 12px;
+      background-color: #0d3a5e;
+      color: white;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button[type="submit"]:hover {
+      background-color: #0a2e4b;
+    }
+    table {
+      width: 100%;
+      margin-top: 20px;
+      border-collapse: collapse;
+    }
+    table, th, td {
+      border: 1px solid #ccc;
+    }
+    th, td {
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f0f0f0;
+    }
+    .delete-btn {
+      background-color: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Generador de Cotizaciones</h1>
+  <form id="cotizarForm" action="/cotizar" method="post">
+    <label for="cliente">Nombre del Cliente:</label>
+    <input type="text" id="cliente" name="cliente" required>
+
+    <label for="codigos">Códigos de Producto (separados por coma):</label>
+    <input type="text" id="codigos" name="codigos" required>
+
+    <button type="button" class="toggle-button" onclick="toggleParametros()">Mostrar/Ocultar Parámetros de Medios de Pago</button>
+    <div class="section hidden" id="parametros">
+      <h2>Parámetros de Medios de Pago</h2>
+      <table id="tabla-medios">
+        <thead>
+          <tr>
+            <th>Medio</th>
+            <th>% (positivo = recargo, negativo = descuento)</th>
+            <th>Eliminar</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="parametro"><td><input class="label" type="text" value="Efectivo"></td><td><input class="coef" type="number" value="-10"></td><td><button type="button" class="delete-btn" onclick="eliminarFila(this)">X</button></td></tr>
+          <tr class="parametro"><td><input class="label" type="text" value="Transferencia"></td><td><input class="coef" type="number" value="0"></td><td><button type="button" class="delete-btn" onclick="eliminarFila(this)">X</button></td></tr>
+          <tr class="parametro"><td><input class="label" type="text" value="Tarjeta 3 Cuotas"></td><td><input class="coef" type="number" value="7.5"></td><td><button type="button" class="delete-btn" onclick="eliminarFila(this)">X</button></td></tr>
+          <tr class="parametro"><td><input class="label" type="text" value="Tarjeta 6 Cuotas"></td><td><input class="coef" type="number" value="14.25"></td><td><button type="button" class="delete-btn" onclick="eliminarFila(this)">X</button></td></tr>
+          <tr class="parametro"><td><input class="label" type="text" value="Banco Galicia 3 Cuotas"></td><td><input class="coef" type="number" value="7"></td><td><button type="button" class="delete-btn" onclick="eliminarFila(this)">X</button></td></tr>
+        </tbody>
+      </table>
+      <br>
+      <label for="marketing">Gasto de Marketing (%):</label>
+      <input type="number" id="marketing" name="marketing" value="2">
+      <br><br>
+      <button type="button" class="toggle-button" onclick="agregarFila()">+ Agregar Medio de Pago</button>
+    </div>
+
+    <button type="submit">Cotizar</button>
+  </form>
+
+  <script>
+  function toggleParametros() {
+    const div = document.getElementById("parametros");
+    div.style.display = div.style.display === "none" ? "block" : "none";
+  }
+
+  function eliminarFila(boton) {
+    boton.parentElement.parentElement.remove();
+  }
+
+  function agregarFila() {
+    const contenedor = document.querySelector("#tabla-medios tbody");
+    const fila = document.createElement("tr");
+    fila.className = "parametro";
+    fila.innerHTML = `
+      <td><input class="label" type="text" placeholder="Ej: 3 cuotas Galicia" /></td>
+      <td><input class="coef" type="number" step="0.01" placeholder="Coeficiente" /></td>
+      <td><button type="button" class="delete-btn" onclick="eliminarFila(this)">X</button></td>
+    `;
+    contenedor.appendChild(fila);
+  }
+
+  window.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("cotizarForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const codigos = document
+        .getElementById("codigos")
+        .value.split(",")
+        .map((c) => c.trim())
+        .filter((c) => c !== "");
+
+      const cliente = document.getElementById("cliente").value.trim() || "Kitchen Tools";
+
+      const formasPago = {};
+      document.querySelectorAll(".parametro").forEach((row) => {
+        const label = row.querySelector(".label").value.trim();
+        const coef = row.querySelector(".coef").value.trim();
+        if (label && coef !== "") {
+          formasPago[label] = {
+            label: label,
+            coef: parseFloat(coef)
+          };
+        }
+      });
+
+      const marketingFee = parseFloat(
+        document.getElementById("marketing").value
+      );
+
+      fetch("/cotizar", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          codigos,
+          cliente,
+          formas_pago: formasPago,
+          marketing_fee: marketingFee
+        })
+      })
+        .then((res) => res.blob())
+        .then((blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "cotizacion_kitchen_tools.pdf";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        });
+    });
+  });
+</script>
+</body>
+</html>
