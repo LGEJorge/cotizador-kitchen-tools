@@ -89,12 +89,13 @@ def cotizar():
         for clave, info in formas_pago.items():
             label = info["label"]
             coef = float(info["coef"])
-            if "cuotas" in label.lower() or "cuota" in label.lower():
-                coef += marketing_fee
+            
+            # 🔁 Nuevo: siempre se suma el marketing_fee
+            coef += marketing_fee
 
             total = p['precio'] * (1 + (coef/100))
 
-            match = re.search(r"\\b(\\d+)\\b", label)
+            match = re.search(r"\b(\d+)\b", label)
             if match:
                 cuotas = int(match.group(1))
                 filas_html += f"<li><strong>{label}:</strong> {formatear_cuota(total, cuotas)}</li>"
