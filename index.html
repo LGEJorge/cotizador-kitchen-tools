@@ -94,6 +94,9 @@
   <form id="cotizarForm" action="/cotizar" method="post">
     <label for="cliente">Nombre del Cliente:</label>
     <input type="text" id="cliente" name="cliente" required>
+	
+	<label for="vencimiento">Fecha de Vencimiento:</label>
+	<input type="date" id="vencimiento" name="vencimiento" required>
 
     <label for="codigos">Códigos de Producto (separados por coma):</label>
     <input type="text" id="codigos" name="codigos" required>
@@ -176,6 +179,8 @@
       const marketingFee = parseFloat(
         document.getElementById("marketing").value
       );
+	  
+	  const vencimiento = document.getElementById("vencimiento").value;
 
       fetch("/cotizar", {
         method: "POST",
@@ -185,6 +190,7 @@
         body: JSON.stringify({
           codigos,
           cliente,
+		  vencimiento,
           formas_pago: formasPago,
           marketing_fee: marketingFee
         })

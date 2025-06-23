@@ -61,7 +61,8 @@ def cotizar():
     marketing_fee = float(request.json.get("marketing_fee", MARKETING_FEE))
 
     fecha = datetime.now()
-    vencimiento = fecha + timedelta(days=5)
+    vencimiento_str = request.json.get("vencimiento")
+    vencimiento = datetime.strptime(vencimiento_str, "%Y-%m-%d") if vencimiento_str else (fecha + timedelta(days=1))
 
     productos = []
     for codigo in codigos:
