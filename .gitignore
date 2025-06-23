@@ -1,0 +1,11 @@
+/build/
+/dist/
+*.spec
+*.exe
+__pycache__/
+*.py[cod]
+*$py.class
+*.pdf
+.DS_Store
+Thumbs.db
+*.log
