@@ -1,0 +1,6 @@
+Para volver a generar el .exe:
+- Borrar las carpetas build, dist, y el archivo sincronizador_total.spec
+- Abrir cmd
+- pyinstaller --onefile sincronizador_total.py
+- Enter
+- El nuevo .exe aparece en \dist\

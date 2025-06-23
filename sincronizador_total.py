@@ -37,3 +37,5 @@ def sincronizar_con_git():
 
 if __name__ == "__main__":
     sincronizar_con_git()
+
+input("\n🟢 Presioná Enter para cerrar...")
