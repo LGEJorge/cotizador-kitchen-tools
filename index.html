@@ -127,7 +127,8 @@
       <button type="button" class="toggle-button" onclick="agregarFila()">+ Agregar Medio de Pago</button>
     </div>
 
-    <button type="submit">Cotizar</button>
+    <p id="estadoCotizacion" style="text-align:center; font-size:15px; font-weight:bold; color:#0d3a5e;"></p>
+	<button type="submit" id="btnCotizar">Cotizar</button>
   </form>
 
   <script>
@@ -182,11 +183,49 @@
 	  
 	  const vencimiento = document.getElementById("vencimiento").value;
 
-      fetch("/cotizar", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+      const estado = document.getElementById("estadoCotizacion");
+		const btnCotizar = document.getElementById("btnCotizar");
+		estado.style.color = "#0d3a5e";
+		estado.textContent = "⏳ Generando cotización...";
+		btnCotizar.disabled = true;
+
+		fetch("/cotizar", {
+		  method: "POST",
+		  headers: {
+			"Content-Type": "application/json"
+		  },
+		  body: JSON.stringify({
+			codigos,
+			cliente,
+			vencimiento,
+			formas_pago: formasPago,
+			marketing_fee: marketingFee
+		  })
+		})
+		  .then((res) => {
+			if (!res.ok) throw new Error("Error en la respuesta del servidor");
+			return res.blob();
+		  })
+		  .then((blob) => {
+			const url = window.URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = "cotizacion_kitchen_tools.pdf";
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			estado.style.color = "green";
+			estado.textContent = "✅ Cotización generada con éxito.";
+		  })
+		  .catch((err) => {
+			console.error("❌ Error:", err);
+			estado.style.color = "red";
+			estado.textContent = "❌ Ocurrió un error al generar la cotización.";
+		  })
+		  .finally(() => {
+			btnCotizar.disabled = false;
+		  });
+
         body: JSON.stringify({
           codigos,
           cliente,
