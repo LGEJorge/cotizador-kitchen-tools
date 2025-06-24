@@ -93,7 +93,7 @@ def cotizar():
             # 🔁 Nuevo: siempre se suma el marketing_fee
             coef += marketing_fee
 
-            total = p['precio'] * (1 + (coef/100))
+            total = p['precio'] / (1 - (coef/100))
 
             match = re.search(r"\b(\d+)\b", label)
             if match:
