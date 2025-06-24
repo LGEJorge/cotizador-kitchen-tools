@@ -88,12 +88,18 @@ def cotizar():
 
         for clave, info in formas_pago.items():
             label = info["label"]
-            coef = float(info["coef"])
-            
-            # 🔁 Nuevo: siempre se suma el marketing_fee
-            coef += marketing_fee
+            coef = float(info["coef"]) + marketing_fee  # Se suma el marketing_fee
 
-            total = p['precio'] / (1 - (coef/100))
+            precio_base = p['precio']
+            if coef < 0:
+                # Descuento (Ej: efectivo)
+                total = precio_base * (1 + coef / 100)
+            else:
+                # Recargo (Ej: cuotas, bancos)
+                try:
+                    total = precio_base / (1 - coef / 100)
+                except ZeroDivisionError:
+                    total = precio_base  # Por si coef = 100%
 
             match = re.search(r"\b(\d+)\b", label)
             if match:
