@@ -74,7 +74,7 @@ def cotizar():
         logo_b64 = base64.b64encode(f.read()).decode("utf-8")
 
     filas_html = ""
-    for i, p in enumerate(productos):
+    for p in productos:
         filas_html += f'''<table style="width:100%; border:1px solid #ccc; border-collapse:collapse; margin-bottom:15px;">
             <tr>
                 <td style="width:170px; padding:10px;">
@@ -86,43 +86,33 @@ def cotizar():
                     <ul style="margin-top:10px; font-size:17px; line-height:2.8em;">
         '''
 
-    for clave, info in formas_pago.items():
-        label = info["label"]
-        coef = float(info["coef"]) + marketing_fee
+        for clave, info in formas_pago.items():
+            label = info["label"]
+            coef = float(info["coef"]) + marketing_fee  # Se suma el marketing_fee
 
-        precio_base = p['precio']
-        if coef < 0:
-            total = precio_base * (1 + coef / 100)
-        else:
-            try:
-                total = precio_base / (1 - coef / 100)
-            except ZeroDivisionError:
-                total = precio_base
+            precio_base = p['precio']
+            if coef < 0:
+                # Descuento (Ej: efectivo)
+                total = precio_base * (1 + coef / 100)
+            else:
+                # Recargo (Ej: cuotas, bancos)
+                try:
+                    total = precio_base / (1 - coef / 100)
+                except ZeroDivisionError:
+                    total = precio_base  # Por si coef = 100%
 
-        match = re.search(r"\b(\d+)\b", label)
-        if match:
-            cuotas = int(match.group(1))
-            filas_html += f"<li><strong>{label}:</strong> {formatear_cuota(total, cuotas)}</li>"
-        else:
-            filas_html += f"<li><strong>{label}:</strong> ${formatear_precio(total)}</li>"
+            match = re.search(r"\b(\d+)\b", label)
+            if match:
+                cuotas = int(match.group(1))
+                filas_html += f"<li><strong>{label}:</strong> {formatear_cuota(total, cuotas)}</li>"
+            else:
+                filas_html += f"<li><strong>{label}:</strong> ${formatear_precio(total)}</li>"
 
-    filas_html += "</ul></td></tr></table>"
-
-    # 👉 Insertar salto de página cada 2 productos
-    if (i + 1) % 2 == 0 and (i + 1) != len(productos):
-        filas_html += '<div class="page-break"></div>'
-
+        filas_html += "</ul></td></tr></table>"
 
     html = f'''
     <html>
-        <head>
-            <meta charset="UTF-8">
-            <style>
-                .page-break {{
-                page-break-after: always;
-                }}
-            </style>
-        </head>
+    <head><meta charset="UTF-8"></head>
     <body style="font-family:Arial; margin:10px;">
         <div style="display:flex; align-items:center;">
             <img src="data:image/png;base64,{logo_b64}" style="height:50px; margin-right:10px;">
