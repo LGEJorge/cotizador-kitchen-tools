@@ -225,25 +225,6 @@
 		  .finally(() => {
 			btnCotizar.disabled = false;
 		  });
-
-        body: JSON.stringify({
-          codigos,
-          cliente,
-		  vencimiento,
-          formas_pago: formasPago,
-          marketing_fee: marketingFee
-        })
-      })
-        .then((res) => res.blob())
-        .then((blob) => {
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = "cotizacion_kitchen_tools.pdf";
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-        });
     });
   });
 </script>
