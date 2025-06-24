@@ -5,13 +5,16 @@ from datetime import datetime, timedelta
 import pandas as pd
 from weasyprint import HTML
 import re
+import requests
+
+TOKEN_DUX = "7nuVD4L4GUJ4nXUv1ZzsUMiU3wJtfeymStJfxdjF93IwamscMsVqFELIBeCqJBel"
 
 app = Flask(__name__)
 
 EXCEL_PATH = "productos.xlsx"
 IMG_FOLDER = "static/img"
 LOGO_PATH = "logo_kitchen.png"
-MARKETING_FEE = 0
+MARKETING_FEE = 0.02
 
 def buscar_imagen_base64(codigo):
     extensiones = [".jpg", ".png"]
@@ -24,24 +27,27 @@ def buscar_imagen_base64(codigo):
 
 def obtener_datos_producto(codigo):
     try:
-        df = pd.read_excel(EXCEL_PATH, header=2)
-        df['Cod Producto'] = df['Cod Producto'].astype(str).str.strip()
-        codigo = str(codigo).strip()
-        fila_filtrada = df[df['Cod Producto'] == codigo]
+        headers = {
+            "Authorization": f"Bearer {TOKEN_DUX}",
+            "accept": "application/json"
+        }
+        url = f"https://api.duxsoftware.com.ar/v1/productos/{codigo}"
+        response = requests.get(url, headers=headers)
 
-        if fila_filtrada.empty:
-            print(f"❌ No se encontró el código '{codigo}' en el Excel.")
+        if response.status_code != 200:
+            print(f"❌ No se encontró el código '{codigo}' en la API. ({response.status_code})")
             return None
 
-        fila = fila_filtrada.iloc[0]
+        data = response.json()
         return {
             "codigo": codigo,
-            "nombre": fila['Producto'],
-            "precio": float(fila['Precio De Venta Con Iva']),
+            "nombre": data.get("descripcion", f"Producto {codigo}"),
+            "precio": float(data.get("precioVentaConIVA", 0)),
             "imagen_b64": buscar_imagen_base64(codigo)
         }
+
     except Exception as e:
-        print("⚠️ Error buscando producto:", e)
+        print("⚠️ Error consultando API Dux:", e)
         return None
 
 def formatear_precio(valor):
