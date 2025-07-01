@@ -87,6 +87,15 @@
       padding: 5px 10px;
       cursor: pointer;
     }
+    .move-btn {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      padding: 5px 10px;
+      cursor: pointer;
+      margin-right: 5px;
+    }
   </style>
 </head>
 <body>
@@ -94,10 +103,10 @@
   <form id="cotizarForm">
     <label for="cliente">Nombre del Cliente:</label>
     <input type="text" id="cliente" name="cliente" required>
-	
-	<label for="vencimiento">Fecha de Vencimiento:</label>
-	<input type="date" id="vencimiento" name="vencimiento" required>
-	<br><br>
+
+    <label for="vencimiento">Fecha de Vencimiento:</label>
+    <input type="date" id="vencimiento" name="vencimiento" required>
+    <br><br>
     <label for="codigos">Códigos de Producto (separados por coma):</label>
     <input type="text" id="codigos" name="codigos" required>
 
@@ -109,124 +118,143 @@
           <tr>
             <th>Medio</th>
             <th>% (positivo = recargo, negativo = descuento)</th>
-            <th>Eliminar</th>
+            <th>Acciones</th>
           </tr>
         </thead>
-        <tbody>
-          <tr class="parametro"><td><input class="label" type="text" value="Efectivo"></td><td><input class="coef" type="number" value="-10"></td><td><button type="button" class="delete-btn" onclick="eliminarFila(this)">X</button></td></tr>
-          <tr class="parametro"><td><input class="label" type="text" value="Transferencia"></td><td><input class="coef" type="number" value="0"></td><td><button type="button" class="delete-btn" onclick="eliminarFila(this)">X</button></td></tr>
-          <tr class="parametro"><td><input class="label" type="text" value="Tarjeta 3 Cuotas"></td><td><input class="coef" type="number" value="7.5"></td><td><button type="button" class="delete-btn" onclick="eliminarFila(this)">X</button></td></tr>
-          <tr class="parametro"><td><input class="label" type="text" value="Tarjeta 6 Cuotas"></td><td><input class="coef" type="number" value="14.25"></td><td><button type="button" class="delete-btn" onclick="eliminarFila(this)">X</button></td></tr>
-          <tr class="parametro"><td><input class="label" type="text" value="Banco Galicia 3 Cuotas"></td><td><input class="coef" type="number" value="7"></td><td><button type="button" class="delete-btn" onclick="eliminarFila(this)">X</button></td></tr>
-        </tbody>
+        <tbody></tbody>
       </table>
       <br>
       <label for="marketing">Gasto de Marketing (%):</label>
       <input type="number" id="marketing" name="marketing" value="0">
       <br><br>
       <button type="button" class="toggle-button" onclick="agregarFila()">+ Agregar Medio de Pago</button>
+      <br>
+      <button type="button" class="toggle-button" onclick="guardarParametrosServidor()">💾 Guardar Parámetros</button>
     </div>
 
     <p id="estadoCotizacion" style="text-align:center; font-size:15px; font-weight:bold; color:#0d3a5e;"></p>
-	<button type="submit" id="btnCotizar">Cotizar</button>
+    <button type="submit" id="btnCotizar">Cotizar</button>
   </form>
 
-  <script>
-  function toggleParametros() {
-    const div = document.getElementById("parametros");
-    div.style.display = div.style.display === "none" ? "block" : "none";
+<script>
+function toggleParametros() {
+  const div = document.getElementById("parametros");
+  div.classList.toggle("hidden");
+}
+
+function eliminarFila(boton) {
+  boton.parentElement.parentElement.remove();
+}
+
+function moverFila(boton, direccion) {
+  const fila = boton.closest("tr");
+  const tbody = fila.parentElement;
+  if (direccion === "arriba" && fila.previousElementSibling) {
+    tbody.insertBefore(fila, fila.previousElementSibling);
+  } else if (direccion === "abajo" && fila.nextElementSibling) {
+    tbody.insertBefore(fila.nextElementSibling, fila);
   }
+}
 
-  function eliminarFila(boton) {
-    boton.parentElement.parentElement.remove();
-  }
+function agregarFila(label = '', coef = '') {
+  const contenedor = document.querySelector("#tabla-medios tbody");
+  const fila = document.createElement("tr");
+  fila.className = "parametro";
+  fila.innerHTML = `
+    <td><input class="label" type="text" value="${label}" /></td>
+    <td><input class="coef" type="number" step="0.01" value="${coef}" /></td>
+    <td>
+      <button type="button" class="move-btn" onclick="moverFila(this, 'arriba')">↑</button>
+      <button type="button" class="move-btn" onclick="moverFila(this, 'abajo')">↓</button>
+      <button type="button" class="delete-btn" onclick="eliminarFila(this)">X</button>
+    </td>
+  `;
+  contenedor.appendChild(fila);
+}
 
-  function agregarFila() {
-    const contenedor = document.querySelector("#tabla-medios tbody");
-    const fila = document.createElement("tr");
-    fila.className = "parametro";
-    fila.innerHTML = `
-      <td><input class="label" type="text" placeholder="Ej: 3 cuotas Galicia" /></td>
-      <td><input class="coef" type="number" step="0.01" placeholder="Coeficiente" /></td>
-      <td><button type="button" class="delete-btn" onclick="eliminarFila(this)">X</button></td>
-    `;
-    contenedor.appendChild(fila);
-  }
-
-  window.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("cotizarForm").addEventListener("submit", function (e) {
-      e.preventDefault();
-
-      const codigos = document
-        .getElementById("codigos")
-        .value.split(",")
-        .map((c) => c.trim())
-        .filter((c) => c !== "");
-
-      const cliente = document.getElementById("cliente").value.trim() || "Kitchen Tools";
-
-      const formasPago = {};
-      document.querySelectorAll(".parametro").forEach((row) => {
-        const label = row.querySelector(".label").value.trim();
-        const coef = row.querySelector(".coef").value.trim();
-        if (label && coef !== "") {
-          formasPago[label] = {
-            label: label,
-            coef: parseFloat(coef)
-          };
-        }
-      });
-
-      const marketingFee = parseFloat(
-        document.getElementById("marketing").value
-      );
-	  
-	  const vencimiento = document.getElementById("vencimiento").value;
-
-      const estado = document.getElementById("estadoCotizacion");
-		const btnCotizar = document.getElementById("btnCotizar");
-		estado.style.color = "#0d3a5e";
-		estado.textContent = "⏳ Generando cotización...";
-		btnCotizar.disabled = true;
-
-		fetch("/cotizar", {
-		  method: "POST",
-		  headers: {
-			"Content-Type": "application/json"
-		  },
-		  body: JSON.stringify({
-			codigos,
-			cliente,
-			vencimiento,
-			formas_pago: formasPago,
-			marketing_fee: marketingFee
-		  })
-		})
-		  .then((res) => {
-			if (!res.ok) throw new Error("Error en la respuesta del servidor");
-			return res.blob();
-		  })
-		  .then((blob) => {
-			const url = window.URL.createObjectURL(blob);
-			const a = document.createElement("a");
-			a.href = url;
-			a.download = "cotizacion_kitchen_tools.pdf";
-			document.body.appendChild(a);
-			a.click();
-			a.remove();
-			estado.style.color = "green";
-			estado.textContent = "✅ Cotización generada con éxito.";
-		  })
-		  .catch((err) => {
-			console.error("❌ Error:", err);
-			estado.style.color = "red";
-			estado.textContent = "❌ Ocurrió un error al generar la cotización.";
-		  })
-		  .finally(() => {
-			btnCotizar.disabled = false;
-		  });
-    });
+function guardarParametrosServidor() {
+  const filas = document.querySelectorAll(".parametro");
+  const formas_pago = [];
+  filas.forEach((fila) => {
+    const label = fila.querySelector(".label").value.trim();
+    const coef = fila.querySelector(".coef").value.trim();
+    if (label && coef !== "") {
+      formas_pago.push({ label, coef: parseFloat(coef) });
+    }
   });
+  const marketing_fee = parseFloat(document.getElementById("marketing").value);
+
+  fetch("/guardar-parametros", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ formas_pago, marketing_fee })
+  })
+    .then(res => res.json())
+    .then(data => alert("✅ " + data.mensaje))
+    .catch(err => alert("❌ Error guardando parámetros"));
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  fetch("/obtener-parametros")
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById("marketing").value = data.marketing_fee || 0;
+      const tbody = document.querySelector("#tabla-medios tbody");
+      tbody.innerHTML = "";
+      (data.formas_pago || []).forEach(p => agregarFila(p.label, p.coef));
+    });
+
+  document.getElementById("cotizarForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    const codigos = document.getElementById("codigos").value.split(",").map(c => c.trim()).filter(c => c);
+    const cliente = document.getElementById("cliente").value.trim() || "Kitchen Tools";
+    const formasPago = {};
+    document.querySelectorAll(".parametro").forEach((row) => {
+      const label = row.querySelector(".label").value.trim();
+      const coef = row.querySelector(".coef").value.trim();
+      if (label && coef !== "") {
+        formasPago[label] = { label, coef: parseFloat(coef) };
+      }
+    });
+    const marketingFee = parseFloat(document.getElementById("marketing").value);
+    const vencimiento = document.getElementById("vencimiento").value;
+
+    const estado = document.getElementById("estadoCotizacion");
+    const btnCotizar = document.getElementById("btnCotizar");
+    estado.style.color = "#0d3a5e";
+    estado.textContent = "⏳ Generando cotización...";
+    btnCotizar.disabled = true;
+
+    fetch("/cotizar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ codigos, cliente, vencimiento, formas_pago: formasPago, marketing_fee: marketingFee })
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("Error en la respuesta del servidor");
+        return res.blob();
+      })
+      .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "cotizacion_kitchen_tools.pdf";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        estado.style.color = "green";
+        estado.textContent = "✅ Cotización generada con éxito.";
+      })
+      .catch(err => {
+        console.error("❌ Error:", err);
+        estado.style.color = "red";
+        estado.textContent = "❌ Ocurrió un error al generar la cotización.";
+      })
+      .finally(() => {
+        btnCotizar.disabled = false;
+      });
+  });
+});
 </script>
 </body>
 </html>

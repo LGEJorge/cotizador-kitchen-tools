@@ -1,18 +1,17 @@
-from flask import Flask, request, send_file, render_template_string, jsonify
+from flask import Flask, request, send_file, render_template_string
 import base64
 import os
 from datetime import datetime, timedelta
 import pandas as pd
 from weasyprint import HTML
 import re
-import json
 
 app = Flask(__name__)
 
 EXCEL_PATH = "productos.xlsx"
 IMG_FOLDER = "static/img"
 LOGO_PATH = "logo_kitchen.png"
-PARAMS_FILE = "parametros.json"
+MARKETING_FEE = 0
 
 def buscar_imagen_base64(codigo):
     extensiones = [".jpg", ".png"]
@@ -54,22 +53,12 @@ def formatear_cuota(total, cuotas):
     cuota_formateada = f"{int(round(cuota)):,}".replace(",", ".")
     return f"${total_formateado} ({cuotas} x ${cuota_formateada})"
 
-def cargar_parametros():
-    if os.path.exists(PARAMS_FILE):
-        with open(PARAMS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {"formas_pago": [], "marketing_fee": 0.0}
-
-def guardar_parametros(data):
-    with open(PARAMS_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-
 @app.route("/cotizar", methods=["POST"])
 def cotizar():
     codigos = request.json.get("codigos", [])
     cliente = request.json.get("cliente", "Kitchen Tools")
     formas_pago = request.json.get("formas_pago", {})
-    marketing_fee = float(request.json.get("marketing_fee", 0.0))
+    marketing_fee = float(request.json.get("marketing_fee", MARKETING_FEE))
 
     fecha = datetime.now()
     vencimiento_str = request.json.get("vencimiento")
@@ -99,16 +88,18 @@ def cotizar():
 
         for clave, info in formas_pago.items():
             label = info["label"]
-            coef = float(info["coef"]) + marketing_fee
+            coef = float(info["coef"]) + marketing_fee  # Se suma el marketing_fee
 
             precio_base = p['precio']
             if coef < 0:
+                # Descuento (Ej: efectivo)
                 total = precio_base * (1 + coef / 100)
             else:
+                # Recargo (Ej: cuotas, bancos)
                 try:
                     total = precio_base / (1 - coef / 100)
                 except ZeroDivisionError:
-                    total = precio_base
+                    total = precio_base  # Por si coef = 100%
 
             match = re.search(r"\b(\d+)\b", label)
             if match:
@@ -141,16 +132,6 @@ def cotizar():
     output_path = "cotizacion_temp.pdf"
     HTML(string=html).write_pdf(output_path)
     return send_file(output_path, mimetype='application/pdf', as_attachment=True, download_name="cotizacion_kitchen_tools.pdf")
-
-@app.route("/guardar-parametros", methods=["POST"])
-def guardar_parametros_endpoint():
-    data = request.json
-    guardar_parametros(data)
-    return jsonify({"mensaje": "Parámetros guardados correctamente"})
-
-@app.route("/obtener-parametros", methods=["GET"])
-def obtener_parametros_endpoint():
-    return jsonify(cargar_parametros())
 
 @app.route("/")
 def home():
