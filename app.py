@@ -12,7 +12,7 @@ app = Flask(__name__)
 EXCEL_PATH = "productos.xlsx"
 IMG_FOLDER = "static/img"
 LOGO_PATH = "logo_kitchen.png"
-PARAMS_FILE = "parametros.json"
+PARAMS_FILE = os.path.join(os.path.dirname(__file__), "parametros.json")
 
 
 def buscar_imagen_base64(codigo):
@@ -67,6 +67,7 @@ def cargar_parametros():
 
 
 def guardar_parametros(data):
+    print(f"💾 Guardando parámetros en: {PARAMS_FILE}")
     with open(PARAMS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
