@@ -1,4 +1,4 @@
-from flask import Flask, request, send_file, render_template_string, jsonify
+from flask import Flask, request, send_file, render_template, render_template_string, jsonify
 import base64
 import os
 from datetime import datetime, timedelta
@@ -14,6 +14,7 @@ IMG_FOLDER = "static/img"
 LOGO_PATH = "logo_kitchen.png"
 PARAMS_FILE = "parametros.json"
 
+
 def buscar_imagen_base64(codigo):
     extensiones = [".jpg", ".png"]
     for ext in extensiones:
@@ -22,6 +23,7 @@ def buscar_imagen_base64(codigo):
             with open(ruta, "rb") as f:
                 return base64.b64encode(f.read()).decode("utf-8")
     return None
+
 
 def obtener_datos_producto(codigo):
     try:
@@ -45,8 +47,10 @@ def obtener_datos_producto(codigo):
         print("⚠️ Error buscando producto:", e)
         return None
 
+
 def formatear_precio(valor):
     return f"{int(round(valor)):,}".replace(",", ".")
+
 
 def formatear_cuota(total, cuotas):
     cuota = total / cuotas
@@ -54,15 +58,18 @@ def formatear_cuota(total, cuotas):
     cuota_formateada = f"{int(round(cuota)):,}".replace(",", ".")
     return f"${total_formateado} ({cuotas} x ${cuota_formateada})"
 
+
 def cargar_parametros():
     if os.path.exists(PARAMS_FILE):
         with open(PARAMS_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     return {"formas_pago": [], "marketing_fee": 0.0}
 
+
 def guardar_parametros(data):
     with open(PARAMS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
+
 
 @app.route("/cotizar", methods=["POST"])
 def cotizar():
@@ -84,24 +91,12 @@ def cotizar():
     with open(LOGO_PATH, "rb") as f:
         logo_b64 = base64.b64encode(f.read()).decode("utf-8")
 
-    filas_html = ""
     for p in productos:
-        filas_html += f'''<table style="width:100%; border:1px solid #ccc; border-collapse:collapse; margin-bottom:15px;">
-            <tr>
-                <td style="width:170px; padding:10px;">
-                    <img src="data:image/jpeg;base64,{p['imagen_b64']}" style="width:160px; height:auto; border-radius:5px;">
-                </td>
-                <td style="padding:10px; vertical-align:top;">
-                    <h2 style="margin:0 0 5px 0; color:#0d3a5e; font-size:17px;">{p['nombre']}</h2>
-                    <p style="margin:0 0 10px 0;"><em>Código: {p['codigo']}</em></p>
-                    <ul style="margin-top:10px; font-size:17px; line-height:2.8em;">
-        '''
-
+        precios = []
         for clave, info in formas_pago.items():
             label = info["label"]
             coef = float(info["coef"]) + marketing_fee
-
-            precio_base = p['precio']
+            precio_base = p["precio"]
             if coef < 0:
                 total = precio_base * (1 + coef / 100)
             else:
@@ -110,37 +105,30 @@ def cotizar():
                 except ZeroDivisionError:
                     total = precio_base
 
-            match = re.search(r"\b(\d+)\b", label)
+            match = re.search(r"\\b(\\d+)\\b", label)
             if match:
                 cuotas = int(match.group(1))
-                filas_html += f"<li><strong>{label}:</strong> {formatear_cuota(total, cuotas)}</li>"
+                texto = formatear_cuota(total, cuotas)
             else:
-                filas_html += f"<li><strong>{label}:</strong> ${formatear_precio(total)}</li>"
+                texto = f"${formatear_precio(total)}"
 
-        filas_html += "</ul></td></tr></table>"
+            precios.append({"label": label, "texto": texto})
 
-    html = f'''
-    <html>
-    <head><meta charset="UTF-8"></head>
-    <body style="font-family:Arial; margin:10px;">
-        <div style="display:flex; align-items:center;">
-            <img src="data:image/png;base64,{logo_b64}" style="height:50px; margin-right:10px;">
-            <h1 style="flex:1; text-align:center;">Cotización - {cliente}</h1>
-        </div>
-        <p style="text-align:center;">
-            Fecha: {fecha.strftime('%d/%m/%Y')} |
-            <span style="color:red;">Válido hasta: {vencimiento.strftime('%d/%m/%Y')}</span>
-        </p>
-        {filas_html}
-        <p style="font-size:10px; font-style:italic;">Precios sujetos a modificación. Consultar condiciones vigentes.</p>
-        <p style="text-align:center; font-size:11px;">WhatsApp: +54 9 11 3816-8648<br>Instagram: @kitchentools.ig</p>
-    </body>
-    </html>
-    '''
+        p["precios"] = precios
+
+    html = render_template(
+        "plantilla_pdf.html",
+        cliente=cliente,
+        fecha=fecha.strftime('%d/%m/%Y'),
+        vencimiento=vencimiento.strftime('%d/%m/%Y'),
+        productos=productos,
+        logo_b64=logo_b64
+    )
 
     output_path = "cotizacion_temp.pdf"
     HTML(string=html).write_pdf(output_path)
     return send_file(output_path, mimetype='application/pdf', as_attachment=True, download_name="cotizacion_kitchen_tools.pdf")
+
 
 @app.route("/guardar-parametros", methods=["POST"])
 def guardar_parametros_endpoint():
@@ -148,14 +136,73 @@ def guardar_parametros_endpoint():
     guardar_parametros(data)
     return jsonify({"mensaje": "Parámetros guardados correctamente"})
 
+
 @app.route("/obtener-parametros", methods=["GET"])
 def obtener_parametros_endpoint():
     return jsonify(cargar_parametros())
+
+
+@app.route("/vista-previa")
+def vista_previa():
+    codigos = ["123", "456"]  # Ejemplo de códigos
+    cliente = "Ejemplo Cliente"
+    formas_pago = {"Efectivo": {"label": "Efectivo", "coef": -10}, "Tarjeta 3 cuotas": {"label": "Tarjeta 3 cuotas", "coef": 7.5}}
+    marketing_fee = 2.0
+
+    fecha = datetime.now()
+    vencimiento = fecha + timedelta(days=1)
+
+    productos = []
+    for codigo in codigos:
+        prod = obtener_datos_producto(codigo)
+        if prod:
+            productos.append(prod)
+
+    with open(LOGO_PATH, "rb") as f:
+        logo_b64 = base64.b64encode(f.read()).decode("utf-8")
+
+    for p in productos:
+        precios = []
+        for clave, info in formas_pago.items():
+            label = info["label"]
+            coef = float(info["coef"]) + marketing_fee
+            precio_base = p["precio"]
+            if coef < 0:
+                total = precio_base * (1 + coef / 100)
+            else:
+                try:
+                    total = precio_base / (1 - coef / 100)
+                except ZeroDivisionError:
+                    total = precio_base
+
+            match = re.search(r"\\b(\\d+)\\b", label)
+            if match:
+                cuotas = int(match.group(1))
+                texto = formatear_cuota(total, cuotas)
+            else:
+                texto = f"${formatear_precio(total)}"
+
+            precios.append({"label": label, "texto": texto})
+
+        p["precios"] = precios
+
+    html = render_template(
+        "plantilla_pdf.html",
+        cliente=cliente,
+        fecha=fecha.strftime('%d/%m/%Y'),
+        vencimiento=vencimiento.strftime('%d/%m/%Y'),
+        productos=productos,
+        logo_b64=logo_b64
+    )
+
+    return html
+
 
 @app.route("/")
 def home():
     with open("index.html", "r", encoding="utf-8") as f:
         return render_template_string(f.read())
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True)
