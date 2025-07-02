@@ -3,11 +3,11 @@
     { "label": "Transferencia", "coef": 0 },
     { "label": "Efectivo", "coef": -10 },
     { "label": "Tarjeta 2 Cuotas", "coef": 7.49 },
-    { "label": "Tarjeta 3 Cuotas", "coef": 8.54 }
-	{ "label": "Tarjeta 6 Cuotas", "coef": 14.64 }
-	{ "label": "Tarjeta 9 Cuotas", "coef": 21.77 }
-	{ "label": "Tarjeta 12 Cuotas", "coef": 27.94 }
-	{ "label": "Bco. Galicia 3 y 6 Cuotas", "coef": 7 }
+    { "label": "Tarjeta 3 Cuotas", "coef": 8.54 },
+    { "label": "Tarjeta 6 Cuotas", "coef": 14.64 },
+    { "label": "Tarjeta 9 Cuotas", "coef": 21.77 },
+    { "label": "Tarjeta 12 Cuotas", "coef": 27.94 },
+    { "label": "Bco. Galicia 3 y 6 Cuotas", "coef": 7 }
   ],
-  "marketing_fee": 2
+  "marketing_fee": 0
 }
