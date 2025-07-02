@@ -12,7 +12,7 @@ app = Flask(__name__)
 EXCEL_PATH = "productos.xlsx"
 IMG_FOLDER = "static/img"
 LOGO_PATH = "logo_kitchen.png"
-PARAMS_FILE = os.path.join(os.path.dirname(__file__), "parametros.json")
+PARAMS_FILE = os.path.join(os.path.abspath(os.path.dirname(__file__)), "parametros.json")
 
 
 def buscar_imagen_base64(codigo):
@@ -106,7 +106,7 @@ def cotizar():
                 except ZeroDivisionError:
                     total = precio_base
 
-            match = re.search(r"\\b(\\d+)\\b", label)
+            match = re.search(r"\b(\d+)\b", label)
             if match:
                 cuotas = int(match.group(1))
                 texto = formatear_cuota(total, cuotas)
@@ -176,7 +176,7 @@ def vista_previa():
                 except ZeroDivisionError:
                     total = precio_base
 
-            match = re.search(r"\\b(\\d+)\\b", label)
+            match = re.search(r"\b(\d+)\b", label)
             if match:
                 cuotas = int(match.group(1))
                 texto = formatear_cuota(total, cuotas)
