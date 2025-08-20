@@ -6,6 +6,7 @@ import pandas as pd
 from weasyprint import HTML
 import re
 import json
+import requests
 
 app = Flask(__name__)
 
@@ -14,6 +15,64 @@ IMG_FOLDER = "static/img"
 LOGO_PATH = "logo_kitchen.png"
 PARAMS_FILE = os.path.join(os.path.abspath(os.path.dirname(__file__)), "parametros.json")
 
+#COLOCAR ESTO EN UN .ENV PARA MAYOR SEGURIDAD
+URL_DUX = "https://erp.duxsoftware.com.ar/WSERP/rest/services/items/"
+HEADERS = {
+    "accept": "application/json",
+    "authorization": "7nuVD4L4GUJ4nXUv1ZzsUMiU3wJtfeymStJfxdjF93IwamscMsVqFELIBeCqJBel"
+}
+PRODUCTOS_FILE = "productos.json"
+productos_cache = {}  # Diccionario en memoria
+
+#------------------------------------------
+
+def actualizarListaProductos():
+    print("📡 Descargando lista completa de productos desde Dux...")
+    todos = []
+    offset = 0
+    limit = 50
+
+    while True:
+        response = requests.get(
+            f"{URL_DUX}?offset={offset}&limit={limit}",
+            headers=HEADERS
+        )
+        
+        if response.status_code != 200:
+            print(f"❌ Error al consultar API (código {response.status_code})")
+            break
+
+        data = response.json()
+        
+        if not data:  # fin de la lista
+            break
+
+        for item in data:
+            todos.append({
+                "codigo": str(item.get("codigo")).strip(),
+                "nombre": item.get("descripcion", ""),
+                "precio": float(item.get("precioVentaConIVA", 0))
+            })
+
+        offset += limit
+
+    # Guardar en archivo
+    with open(PRODUCTOS_FILE, "w", encoding="utf-8") as f:
+        json.dump(todos, f, ensure_ascii=False, indent=2)
+
+    print(f"✅ Lista de productos actualizada. Total: {len(todos)}")
+
+def cargar_productos():
+    global productos_cache
+
+    if not os.path.exists(PRODUCTOS_FILE):
+        actualizarListaProductos()
+    with open(PRODUCTOS_FILE, "r", encoding="utf-8") as f:
+        productos_cache = {p["codigo"]: p for p in json.load(f)}
+    print(f"📦 Productos cargados en memoria: {len(productos_cache)}")
+
+def obtener_datos_producto(codigo):
+    return productos_cache.get(str(codigo))
 
 def buscar_imagen_base64(codigo):
     extensiones = [".jpg", ".png"]
@@ -24,33 +83,8 @@ def buscar_imagen_base64(codigo):
                 return base64.b64encode(f.read()).decode("utf-8")
     return None
 
-
-def obtener_datos_producto(codigo):
-    try:
-        df = pd.read_excel(EXCEL_PATH, header=2)
-        df['Cod Producto'] = df['Cod Producto'].astype(str).str.strip()
-        codigo = str(codigo).strip()
-        fila_filtrada = df[df['Cod Producto'] == codigo]
-
-        if fila_filtrada.empty:
-            print(f"❌ No se encontró el código '{codigo}' en el Excel.")
-            return None
-
-        fila = fila_filtrada.iloc[0]
-        return {
-            "codigo": codigo,
-            "nombre": fila['Producto'],
-            "precio": float(fila['Precio De Venta Con Iva']),
-            "imagen_b64": buscar_imagen_base64(codigo)
-        }
-    except Exception as e:
-        print("⚠️ Error buscando producto:", e)
-        return None
-
-
 def formatear_precio(valor):
     return f"{int(round(valor)):,}".replace(",", ".")
-
 
 def formatear_cuota(total, cuotas):
     cuota = total / cuotas
@@ -58,13 +92,11 @@ def formatear_cuota(total, cuotas):
     cuota_formateada = f"{int(round(cuota)):,}".replace(",", ".")
     return f"${total_formateado} ({cuotas} x ${cuota_formateada})"
 
-
 def cargar_parametros():
     if os.path.exists(PARAMS_FILE):
         with open(PARAMS_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     return {"formas_pago": [], "marketing_fee": 0.0}
-
 
 def guardar_parametros(data):
     print(f"💾 Guardando parámetros en: {PARAMS_FILE}")
