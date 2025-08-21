@@ -1,19 +1,25 @@
 from flask import Flask, request, send_file, render_template, render_template_string, jsonify
+
+from products.products_loader import cargar_productos
+from products.scheduler import iniciar_scheduler
+from utils.price_formater import formatear_precio
+from products.get_product import obtener_datos_producto
+from config import AppState
+
+from datetime import datetime, timedelta
+from weasyprint import HTML
+
 import base64
 import os
-from datetime import datetime, timedelta
-import pandas as pd
-from weasyprint import HTML
 import re
 import json
+import requests
 
 app = Flask(__name__)
 
-EXCEL_PATH = "productos.xlsx"
 IMG_FOLDER = "static/img"
 LOGO_PATH = "logo_kitchen.png"
 PARAMS_FILE = os.path.join(os.path.abspath(os.path.dirname(__file__)), "parametros.json")
-
 
 def buscar_imagen_base64(codigo):
     extensiones = [".jpg", ".png"]
@@ -24,40 +30,11 @@ def buscar_imagen_base64(codigo):
                 return base64.b64encode(f.read()).decode("utf-8")
     return None
 
-
-def obtener_datos_producto(codigo):
-    try:
-        df = pd.read_excel(EXCEL_PATH, header=2)
-        df['Cod Producto'] = df['Cod Producto'].astype(str).str.strip()
-        codigo = str(codigo).strip()
-        fila_filtrada = df[df['Cod Producto'] == codigo]
-
-        if fila_filtrada.empty:
-            print(f"❌ No se encontró el código '{codigo}' en el Excel.")
-            return None
-
-        fila = fila_filtrada.iloc[0]
-        return {
-            "codigo": codigo,
-            "nombre": fila['Producto'],
-            "precio": float(fila['Precio De Venta Con Iva']),
-            "imagen_b64": buscar_imagen_base64(codigo)
-        }
-    except Exception as e:
-        print("⚠️ Error buscando producto:", e)
-        return None
-
-
-def formatear_precio(valor):
-    return f"{int(round(valor)):,}".replace(",", ".")
-
-
 def formatear_cuota(total, cuotas):
     cuota = total / cuotas
     total_formateado = f"{int(round(total)):,}".replace(",", ".")
     cuota_formateada = f"{int(round(cuota)):,}".replace(",", ".")
     return f"${total_formateado} ({cuotas} x ${cuota_formateada})"
-
 
 def cargar_parametros():
     if os.path.exists(PARAMS_FILE):
@@ -65,12 +42,10 @@ def cargar_parametros():
             return json.load(f)
     return {"formas_pago": [], "marketing_fee": 0.0}
 
-
 def guardar_parametros(data):
     print(f"💾 Guardando parámetros en: {PARAMS_FILE}")
     with open(PARAMS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
-
 
 @app.route("/cotizar", methods=["POST"])
 def cotizar():
@@ -84,8 +59,10 @@ def cotizar():
     vencimiento = datetime.strptime(vencimiento_str, "%Y-%m-%d") if vencimiento_str else (fecha + timedelta(days=1))
 
     productos = []
+
     for codigo in codigos:
         prod = obtener_datos_producto(codigo)
+
         if prod:
             productos.append(prod)
 
@@ -130,18 +107,15 @@ def cotizar():
     HTML(string=html).write_pdf(output_path)
     return send_file(output_path, mimetype='application/pdf', as_attachment=True, download_name="cotizacion_kitchen_tools.pdf")
 
-
 @app.route("/guardar-parametros", methods=["POST"])
 def guardar_parametros_endpoint():
     data = request.json
     guardar_parametros(data)
     return jsonify({"mensaje": "Parámetros guardados correctamente"})
 
-
 @app.route("/obtener-parametros", methods=["GET"])
 def obtener_parametros_endpoint():
     return jsonify(cargar_parametros())
-
 
 @app.route("/vista-previa")
 def vista_previa():
@@ -198,12 +172,12 @@ def vista_previa():
 
     return html
 
-
 @app.route("/")
 def home():
     with open("index.html", "r", encoding="utf-8") as f:
         return render_template_string(f.read())
 
-
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True)
+    cargar_productos()
+    iniciar_scheduler()
+    app.run(host="127.0.0.1", debug=False)
