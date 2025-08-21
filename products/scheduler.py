@@ -1,7 +1,7 @@
 import time
 import threading
 from datetime import datetime
-from products.updater import actualizarListaProductos
+from products.updater import actualizar_lista_productos
 
 def dentro_del_horario():
     hora = datetime.now().hour
@@ -13,7 +13,7 @@ def iniciar_scheduler():
         while True:
             if dentro_del_horario():
                 print("🌙 Actualizando productos...")
-                actualizarListaProductos()
+                actualizar_lista_productos()
             else:
                 print("⏳ Esperando próxima ventana...")
             time.sleep(3600)

@@ -1,6 +1,8 @@
 from flask import Flask, request, send_file, render_template, render_template_string, jsonify
 
+
 from products.products_loader import cargar_productos
+from products.updater import actualizar_lista_productos
 from products.scheduler import iniciar_scheduler
 from utils.price_formater import formatear_precio
 from products.get_product import obtener_datos_producto
@@ -20,6 +22,7 @@ app = Flask(__name__)
 IMG_FOLDER = "static/img"
 LOGO_PATH = "logo_kitchen.png"
 PARAMS_FILE = os.path.join(os.path.abspath(os.path.dirname(__file__)), "parametros.json")
+
 
 def buscar_imagen_base64(codigo):
     extensiones = [".jpg", ".png"]
@@ -49,22 +52,26 @@ def guardar_parametros(data):
 
 @app.route("/cotizar", methods=["POST"])
 def cotizar():
-    codigos = request.json.get("codigos", [])
-    cliente = request.json.get("cliente", "Kitchen Tools")
-    formas_pago = request.json.get("formas_pago", {})
-    marketing_fee = float(request.json.get("marketing_fee", 0.0))
+    with AppState.update_lock:
+        if AppState.is_updating_products:
+            return jsonify({"mensaje": "⏳ Cotización en pausa por actualización de productos"}), 409
+        
+        codigos = request.json.get("codigos", [])
+        cliente = request.json.get("cliente", "Kitchen Tools")
+        formas_pago = request.json.get("formas_pago", {})
+        marketing_fee = float(request.json.get("marketing_fee", 0.0))
 
-    fecha = datetime.now()
-    vencimiento_str = request.json.get("vencimiento")
-    vencimiento = datetime.strptime(vencimiento_str, "%Y-%m-%d") if vencimiento_str else (fecha + timedelta(days=1))
+        fecha = datetime.now()
+        vencimiento_str = request.json.get("vencimiento")
+        vencimiento = datetime.strptime(vencimiento_str, "%Y-%m-%d") if vencimiento_str else (fecha + timedelta(days=1))
 
-    productos = []
+        productos = []
 
-    for codigo in codigos:
-        prod = obtener_datos_producto(codigo)
+        for codigo in codigos:
+            prod = obtener_datos_producto(codigo)
 
-        if prod:
-            productos.append(prod)
+            if prod:
+                productos.append(prod)
 
     with open(LOGO_PATH, "rb") as f:
         logo_b64 = base64.b64encode(f.read()).decode("utf-8")
@@ -93,6 +100,7 @@ def cotizar():
             precios.append({"label": label, "texto": texto})
 
         p["precios"] = precios
+        p["imagen_b64"] = buscar_imagen_base64(p["codigo"])
 
     html = render_template(
         "plantilla_pdf.html",
@@ -116,6 +124,21 @@ def guardar_parametros_endpoint():
 @app.route("/obtener-parametros", methods=["GET"])
 def obtener_parametros_endpoint():
     return jsonify(cargar_parametros())
+
+@app.route("/forzar-actualizacion", methods=["POST"])
+def forzar_actualizacion():
+    with AppState.update_lock:
+        if AppState.is_updating_products:
+            return jsonify({"mensaje": "⚠️ Ya se está actualizando"}), 409
+        AppState.is_updating_products = True
+
+    try:
+        actualizar_lista_productos()
+        AppState.is_products_list_loaded = True
+        return jsonify({"mensaje": "✅ Lista actualizada correctamente"})
+    finally:
+        with AppState.update_lock:
+            AppState.is_updating_products = False
 
 @app.route("/vista-previa")
 def vista_previa():

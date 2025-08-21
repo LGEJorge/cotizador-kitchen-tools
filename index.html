@@ -110,7 +110,9 @@
     <label for="codigos">Códigos de Producto (separados por coma):</label>
     <input type="text" id="codigos" name="codigos" required>
 
+    <p id="estado-carga"></p>
     <button type="button" class="toggle-button" onclick="toggleParametros()">Mostrar/Ocultar Parámetros de Medios de Pago</button>
+    <button type="button" class="toggle-button" onclick="forceItemsUpdate()">Forzar actualización de Items</button>
     <div class="section hidden" id="parametros">
       <h2>Parámetros de Medios de Pago</h2>
       <table id="tabla-medios">
@@ -137,6 +139,23 @@
   </form>
 
 <script>
+function forceItemsUpdate() {
+    const estado = document.getElementById("estado-carga");
+    estado.textContent = "⏳ Cargando...";
+
+    fetch("/forzar-actualizacion", {
+      method: "POST"
+    })
+    .then(res => res.json())
+    .then(data => {
+      estado.textContent = data.mensaje;
+    })
+    .catch(err => {
+      estado.textContent = "❌ Error al actualizar los productos";
+      console.error(err);
+    });
+  }
+
 function toggleParametros() {
   const div = document.getElementById("parametros");
   div.classList.toggle("hidden");

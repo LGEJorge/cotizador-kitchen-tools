@@ -1,7 +1,7 @@
 import requests, time, json
 from config import URL_DUX, HEADERS, PRODUCTOS_FILE
 
-def actualizarListaProductos():
+def actualizar_lista_productos():
     print("📡 Descargando lista completa de productos desde Dux...")
     todos = []
     offset = 0

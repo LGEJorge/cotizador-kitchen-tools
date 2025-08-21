@@ -1,5 +1,8 @@
+from threading import Lock
 class AppState:
     is_products_list_loaded = False
+    is_updating_products = False
+    update_lock = Lock()
 
 URL_DUX = "https://erp.duxsoftware.com.ar/WSERP/rest/services/items"
 HEADERS = {

@@ -1,7 +1,7 @@
 import json
 from config import PRODUCTOS_FILE
 from config import AppState
-# from products.updater import actualizarListaProductos
+from products.updater import actualizarListaProductos
 
 products_list = {}
 
@@ -13,7 +13,7 @@ def cargar_productos():
     global products_list
     AppState.is_products_list_loaded = False
 
-    # actualizarListaProductos()
+    actualizarListaProductos()
 
     with open(PRODUCTOS_FILE, "r", encoding="utf-8") as f:
         products_list = {p["codigo"]: p for p in json.load(f)}
