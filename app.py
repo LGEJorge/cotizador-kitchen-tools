@@ -1,78 +1,25 @@
 from flask import Flask, request, send_file, render_template, render_template_string, jsonify
+
+from products.products_loader import cargar_productos
+from products.scheduler import iniciar_scheduler
+from utils.price_formater import formatear_precio
+from products.get_product import obtener_datos_producto
+from config import AppState
+
+from datetime import datetime, timedelta
+from weasyprint import HTML
+
 import base64
 import os
-from datetime import datetime, timedelta
-import pandas as pd
-from weasyprint import HTML
 import re
 import json
 import requests
 
 app = Flask(__name__)
 
-EXCEL_PATH = "productos.xlsx"
 IMG_FOLDER = "static/img"
 LOGO_PATH = "logo_kitchen.png"
 PARAMS_FILE = os.path.join(os.path.abspath(os.path.dirname(__file__)), "parametros.json")
-
-#COLOCAR ESTO EN UN .ENV PARA MAYOR SEGURIDAD
-URL_DUX = "https://erp.duxsoftware.com.ar/WSERP/rest/services/items/"
-HEADERS = {
-    "accept": "application/json",
-    "authorization": "7nuVD4L4GUJ4nXUv1ZzsUMiU3wJtfeymStJfxdjF93IwamscMsVqFELIBeCqJBel"
-}
-PRODUCTOS_FILE = "productos.json"
-productos_cache = {}  # Diccionario en memoria
-
-#------------------------------------------
-
-def actualizarListaProductos():
-    print("📡 Descargando lista completa de productos desde Dux...")
-    todos = []
-    offset = 0
-    limit = 50
-
-    while True:
-        response = requests.get(
-            f"{URL_DUX}?offset={offset}&limit={limit}",
-            headers=HEADERS
-        )
-        
-        if response.status_code != 200:
-            print(f"❌ Error al consultar API (código {response.status_code})")
-            break
-
-        data = response.json()
-        
-        if not data:  # fin de la lista
-            break
-
-        for item in data:
-            todos.append({
-                "codigo": str(item.get("codigo")).strip(),
-                "nombre": item.get("descripcion", ""),
-                "precio": float(item.get("precioVentaConIVA", 0))
-            })
-
-        offset += limit
-
-    # Guardar en archivo
-    with open(PRODUCTOS_FILE, "w", encoding="utf-8") as f:
-        json.dump(todos, f, ensure_ascii=False, indent=2)
-
-    print(f"✅ Lista de productos actualizada. Total: {len(todos)}")
-
-def cargar_productos():
-    global productos_cache
-
-    if not os.path.exists(PRODUCTOS_FILE):
-        actualizarListaProductos()
-    with open(PRODUCTOS_FILE, "r", encoding="utf-8") as f:
-        productos_cache = {p["codigo"]: p for p in json.load(f)}
-    print(f"📦 Productos cargados en memoria: {len(productos_cache)}")
-
-def obtener_datos_producto(codigo):
-    return productos_cache.get(str(codigo))
 
 def buscar_imagen_base64(codigo):
     extensiones = [".jpg", ".png"]
@@ -82,9 +29,6 @@ def buscar_imagen_base64(codigo):
             with open(ruta, "rb") as f:
                 return base64.b64encode(f.read()).decode("utf-8")
     return None
-
-def formatear_precio(valor):
-    return f"{int(round(valor)):,}".replace(",", ".")
 
 def formatear_cuota(total, cuotas):
     cuota = total / cuotas
@@ -103,7 +47,6 @@ def guardar_parametros(data):
     with open(PARAMS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
-
 @app.route("/cotizar", methods=["POST"])
 def cotizar():
     codigos = request.json.get("codigos", [])
@@ -116,8 +59,10 @@ def cotizar():
     vencimiento = datetime.strptime(vencimiento_str, "%Y-%m-%d") if vencimiento_str else (fecha + timedelta(days=1))
 
     productos = []
+
     for codigo in codigos:
         prod = obtener_datos_producto(codigo)
+
         if prod:
             productos.append(prod)
 
@@ -162,18 +107,15 @@ def cotizar():
     HTML(string=html).write_pdf(output_path)
     return send_file(output_path, mimetype='application/pdf', as_attachment=True, download_name="cotizacion_kitchen_tools.pdf")
 
-
 @app.route("/guardar-parametros", methods=["POST"])
 def guardar_parametros_endpoint():
     data = request.json
     guardar_parametros(data)
     return jsonify({"mensaje": "Parámetros guardados correctamente"})
 
-
 @app.route("/obtener-parametros", methods=["GET"])
 def obtener_parametros_endpoint():
     return jsonify(cargar_parametros())
-
 
 @app.route("/vista-previa")
 def vista_previa():
@@ -230,12 +172,12 @@ def vista_previa():
 
     return html
 
-
 @app.route("/")
 def home():
     with open("index.html", "r", encoding="utf-8") as f:
         return render_template_string(f.read())
 
-
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True)
+    cargar_productos()
+    iniciar_scheduler()
+    app.run(host="127.0.0.1", debug=False)
