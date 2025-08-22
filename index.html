@@ -192,15 +192,19 @@ function agregarFila(label = '', coef = '') {
 }
 
 function guardarParametrosServidor() {
+  //Toma todos los parametros y los guarda en filas
   const filas = document.querySelectorAll(".parametro");
   const formas_pago = [];
+  
   filas.forEach((fila) => {
     const label = fila.querySelector(".label").value.trim();
     const coef = fila.querySelector(".coef").value.trim();
+    
     if (label && coef !== "") {
       formas_pago.push({ label, coef: parseFloat(coef) });
     }
   });
+
   const marketing_fee = parseFloat(document.getElementById("marketing").value);
 
   fetch("/guardar-parametros", {
