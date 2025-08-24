@@ -1,11 +1,11 @@
 from flask import Flask, request, send_file, render_template, render_template_string, jsonify
 
-
 from products.products_loader import cargar_productos
 from products.updater import actualizar_lista_productos
 from products.scheduler import iniciar_scheduler
 from utils.price_formater import formatear_precio
 from products.get_product import obtener_datos_producto
+from products.parameters_service import guardar_parametros, cargar_parametros
 from config import AppState
 
 from datetime import datetime, timedelta
@@ -14,15 +14,12 @@ from weasyprint import HTML
 import base64
 import os
 import re
-import json
-import requests
 
 app = Flask(__name__)
 
 IMG_FOLDER = "static/img"
 LOGO_PATH = "logo_kitchen.png"
 PARAMS_FILE = os.path.join(os.path.abspath(os.path.dirname(__file__)), "parametros.json")
-
 
 def buscar_imagen_base64(codigo):
     extensiones = [".jpg", ".png"]
@@ -38,17 +35,6 @@ def formatear_cuota(total, cuotas):
     total_formateado = f"{int(round(total)):,}".replace(",", ".")
     cuota_formateada = f"{int(round(cuota)):,}".replace(",", ".")
     return f"${total_formateado} ({cuotas} x ${cuota_formateada})"
-
-def cargar_parametros():
-    if os.path.exists(PARAMS_FILE):
-        with open(PARAMS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {"formas_pago": [], "marketing_fee": 0.0}
-
-def guardar_parametros(data):
-    print(f"💾 Guardando parámetros en: {PARAMS_FILE}")
-    with open(PARAMS_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
 
 @app.route("/cotizar", methods=["POST"])
 def cotizar():

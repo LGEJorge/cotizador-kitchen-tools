@@ -8,7 +8,6 @@ products_list = {}
 def get_producto_por_codigo(codigo):
     return products_list.get(str(codigo))
 
-
 def cargar_productos():
     global products_list
     AppState.is_products_list_loaded = False
