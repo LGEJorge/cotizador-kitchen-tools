@@ -39,7 +39,7 @@ def actualizar_lista_productos():
 
                 # Este nombre permite que en un futuro se pueda cambiar facilmente de la lista MAQUINAS a OTRO
                 nombre_lista = precio_info.get("nombre", "").strip().upper()
-                if nombre_lista == "MAQUINAS":
+                if nombre_lista == "KT GASTRO":
                     try:
                         precio = float(precio_info.get("precio", 0))
                     except (ValueError, TypeError):
