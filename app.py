@@ -1,5 +1,9 @@
 from flask import Flask, request, redirect, send_file, render_template, render_template_string, jsonify, url_for
 
+#Variables de entorno
+from dotenv import load_dotenv
+load_dotenv()
+
 # Importo librería de Gooogle Auth
 from google_auth_oauthlib.flow import Flow
 
@@ -102,6 +106,9 @@ def cotizar():
         for codigo in codigos:
             prod = obtener_datos_producto(codigo)
 
+            # MUESTRO EL PRODUCTO PARA VERIFICAR QUE LLEGA
+            print(f"{prod}")
+
             if prod:
                 productos.append(prod)
 
@@ -152,7 +159,6 @@ def cotizar():
 
             asunto = "Tu presupuesto Kitchen Tools"
             cuerpo = f"""Hola {cliente},
-
             Adjunto el presupuesto solicitado. Cualquier duda, estoy a disposición.
 
             Saludos,
