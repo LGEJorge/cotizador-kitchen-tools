@@ -1,8 +1,11 @@
 from flask import Flask, request, redirect, send_file, render_template, render_template_string, jsonify, url_for
 
 #Variables de entorno
-from dotenv import load_dotenv
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except:
+    pass
 
 # Importo librería de Gooogle Auth
 from google_auth_oauthlib.flow import Flow
