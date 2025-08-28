@@ -1,16 +1,23 @@
-from flask import Flask, request, send_file, render_template, render_template_string, jsonify
+from flask import Flask, request, redirect, send_file, render_template, render_template_string, jsonify, url_for
+
+# Importo librería de Gooogle Auth
+from google_auth_oauthlib.flow import Flow
 
 from products.products_loader import cargar_productos
 from products.updater import actualizar_lista_productos
 from products.scheduler import iniciar_scheduler
 from utils.price_formater import formatear_precio
+from utils.gmail_service import enviar_cotizacion
+from utils.perfit_service import cargar_contacto_prefit
 from products.get_product import obtener_datos_producto
-from products.parameters_service import guardar_parametros, cargar_parametros
+from products.redis_service import guardar_parametros, cargar_parametros, guardar_token
+
 from config import AppState
 
 from datetime import datetime, timedelta
 from weasyprint import HTML
 
+import json
 import base64
 import os
 import re
@@ -20,6 +27,24 @@ app = Flask(__name__)
 IMG_FOLDER = "static/img"
 LOGO_PATH = "logo_kitchen.png"
 PARAMS_FILE = os.path.join(os.path.abspath(os.path.dirname(__file__)), "parametros.json")
+
+# Le aviso al OAuth que estoy en entorno de desarrollo
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
+flow = Flow.from_client_secrets_file(
+    {
+        "web": {
+            "client_id": os.environ["GOOGLE_CLIENT_ID"],
+            "client_secret": os.environ["GOOGLE_CLIENT_SECRET"],
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "redirect_uris": [os.environ["REDIRECT_URI"]]
+        }
+    },
+    scopes=['https://www.googleapis.com/auth/gmail.send'],
+    redirect_uri= os.environ.get("REDIRECT_URI")
+)
 
 def buscar_imagen_base64(codigo):
     extensiones = [".jpg", ".png"]
@@ -36,6 +61,23 @@ def formatear_cuota(total, cuotas):
     cuota_formateada = f"{int(round(cuota)):,}".replace(",", ".")
     return f"${total_formateado} ({cuotas} x ${cuota_formateada})"
 
+@app.route('/authorize')
+def authorize():
+    authorization_url, state = flow.authorization_url(
+    access_type='offline',
+    include_granted_scopes='true',
+    prompt='consent'
+)
+    
+    return redirect(authorization_url)
+
+@app.route('/oauth2callback')
+def oauth2callback():
+    flow.fetch_token(authorization_response=request.url)
+    credentials = flow.credentials
+    guardar_token(json.loads(credentials.to_json()))
+    return redirect(url_for('home', autorizado='true'))
+
 @app.route("/cotizar", methods=["POST"])
 def cotizar():
     with AppState.update_lock:
@@ -44,6 +86,10 @@ def cotizar():
         
         codigos = request.json.get("codigos", [])
         cliente = request.json.get("cliente", "Kitchen Tools")
+        mail = request.json.get("mail", "")
+        telefono = request.json.get("telefono", "")
+        rubro = request.json.get("rubro", "")
+
         formas_pago = request.json.get("formas_pago", {})
         marketing_fee = float(request.json.get("marketing_fee", 0.0))
 
@@ -99,7 +145,29 @@ def cotizar():
 
     output_path = "cotizacion_temp.pdf"
     HTML(string=html).write_pdf(output_path)
-    return send_file(output_path, mimetype='application/pdf', as_attachment=True, download_name="cotizacion_kitchen_tools.pdf")
+
+    if mail != "":
+        with open(output_path, "rb") as pdf_file:
+            pdf_bytes = pdf_file.read()
+
+            asunto = "Tu presupuesto Kitchen Tools"
+            cuerpo = f"""Hola {cliente},
+
+            Adjunto el presupuesto solicitado. Cualquier duda, estoy a disposición.
+
+            Saludos,
+            Kitchen Tools"""
+
+            try:
+                enviar_cotizacion(mail, asunto, cuerpo, pdf_bytes, "cotizacion_kitchen_tools.pdf")
+                print("✅ Correo enviado con éxito.")
+            except Exception as e:
+                print(f"❌ Error al enviar correo: {e}")
+
+    if mail != "" or telefono != "":
+        cargar_contacto_prefit(mail, cliente, telefono, rubro)
+
+    return send_file(output_path, mimetype='application/pdf', as_attachment=True, download_name=f"cotizacion_{cliente}_kitchen_tools.pdf")
 
 @app.route("/guardar-parametros", methods=["POST"])
 def guardar_parametros_endpoint():
@@ -125,61 +193,6 @@ def forzar_actualizacion():
     finally:
         with AppState.update_lock:
             AppState.is_updating_products = False
-
-@app.route("/vista-previa")
-def vista_previa():
-    codigos = ["123", "456"]  # Ejemplo de códigos
-    cliente = "Ejemplo Cliente"
-    formas_pago = {"Efectivo": {"label": "Efectivo", "coef": -10}, "Tarjeta 3 cuotas": {"label": "Tarjeta 3 cuotas", "coef": 7.5}}
-    marketing_fee = 2.0
-
-    fecha = datetime.now()
-    vencimiento = fecha + timedelta(days=1)
-
-    productos = []
-    for codigo in codigos:
-        prod = obtener_datos_producto(codigo)
-        if prod:
-            productos.append(prod)
-
-    with open(LOGO_PATH, "rb") as f:
-        logo_b64 = base64.b64encode(f.read()).decode("utf-8")
-
-    for p in productos:
-        precios = []
-        for clave, info in formas_pago.items():
-            label = info["label"]
-            coef = float(info["coef"]) + marketing_fee
-            precio_base = p["precio"]
-            if coef < 0:
-                total = precio_base * (1 + coef / 100)
-            else:
-                try:
-                    total = precio_base / (1 - coef / 100)
-                except ZeroDivisionError:
-                    total = precio_base
-
-            match = re.search(r"\b(\d+)\b", label)
-            if match:
-                cuotas = int(match.group(1))
-                texto = formatear_cuota(total, cuotas)
-            else:
-                texto = f"${formatear_precio(total)}"
-
-            precios.append({"label": label, "texto": texto})
-
-        p["precios"] = precios
-
-    html = render_template(
-        "plantilla_pdf.html",
-        cliente=cliente,
-        fecha=fecha.strftime('%d/%m/%Y'),
-        vencimiento=vencimiento.strftime('%d/%m/%Y'),
-        productos=productos,
-        logo_b64=logo_b64
-    )
-
-    return html
 
 @app.route("/")
 def home():

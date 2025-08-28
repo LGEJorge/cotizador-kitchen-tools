@@ -1,15 +1,19 @@
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
+
 import redis
 import json
 import os
 
 PARAMS_FILE = os.path.join(os.path.abspath(os.path.dirname(__file__)), "parametros.json")
+EXPIRACION_TOKEN = 30 * 24 * 60 * 60  # 30 días
 
 r = redis.Redis(
     host='redis-18037.crce181.sa-east-1-2.ec2.redns.redis-cloud.com',
     port=18037,
     decode_responses=True,
     username="admin",
-    password="KitchenTools2025*",
+    password= os.environ.get("REDIS_PASSWORD"),
     db="0"
 )
 
@@ -29,6 +33,27 @@ data = {
 
 parametros = json.loads(r.get('parametros'))
 
+def guardar_token(data):
+    print(f"💾 Guardando token en la nube")
+    r.setex('token', EXPIRACION_TOKEN, json.dumps(data))
+
+def cargar_token():
+    token_json = r.get('token')
+
+    if not token_json:
+        return None
+
+    credentials = Credentials.from_authorized_user_info(
+        json.loads(token_json),
+        ["https://www.googleapis.com/auth/gmail.send"]
+    )
+
+    if credentials.expired and credentials.refresh_token:
+        credentials.refresh(Request())
+        guardar_token(json.loads(credentials.to_json()))
+
+    return credentials if credentials.valid else None
+
 def guardar_parametros(data):
     print(f"💾 Guardando parámetros en la nube")
     r.set('parametros', json.dumps(data))
@@ -38,5 +63,3 @@ def cargar_parametros():
     if parametros:
         return json.loads(parametros)
     return {"formas_pago": [], "marketing_fee": 0.0}
-
-print(f"{r.get('parametros')}")

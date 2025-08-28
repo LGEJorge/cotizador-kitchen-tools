@@ -21,8 +21,8 @@
       border-radius: 10px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
-    input[type="text"], input[type="number"] {
-      width: 100%;
+    input {
+      width: 97%;
       padding: 10px;
       margin-bottom: 15px;
       border: 1px solid #ccc;
@@ -98,17 +98,31 @@
     }
   </style>
 </head>
+
 <body>
   <h1>Generador de Cotizaciones</h1>
+  
   <form id="cotizarForm">
+    
     <label for="cliente">Nombre del Cliente:</label>
     <input type="text" id="cliente" name="cliente" required>
 
     <label for="vencimiento">Fecha de Vencimiento:</label>
     <input type="date" id="vencimiento" name="vencimiento" required>
+    
     <br><br>
+    
     <label for="codigos">Códigos de Producto (separados por coma):</label>
     <input type="text" id="codigos" name="codigos" required>
+
+    <label for="mail">Correo electrónico:</label>
+    <input type="email" id="mail" name="mail">
+    
+    <label for="telefono">Teléfono:</label>
+    <input type="tel" id="telefono" name="telefono">
+    
+    <label for="rubro">Rubro:</label>
+    <input type="text" id="rubro" name="rubro">
 
     <p id="estado-carga"></p>
     <button type="button" class="toggle-button" onclick="toggleParametros()">Mostrar/Ocultar Parámetros de Medios de Pago</button>
@@ -218,6 +232,16 @@ function guardarParametrosServidor() {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
+  const params = new URLSearchParams(window.location.search); 
+  
+  if (params.get("autorizado") === "true") { 
+    alert("✅ Autenticación exitosa. Ya podés cotizar."); 
+  }
+
+  const hoy = new Date().toISOString().split("T")[0];
+  document.getElementById("vencimiento").value = hoy;
+  // document.getElementById("vencimiento").readOnly = true;
+
   fetch("/obtener-parametros")
     .then(res => res.json())
     .then(data => {
@@ -231,7 +255,14 @@ window.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     const codigos = document.getElementById("codigos").value.split(",").map(c => c.trim()).filter(c => c);
     const cliente = document.getElementById("cliente").value.trim() || "Kitchen Tools";
+    const vencimiento = document.getElementById("vencimiento").value;
+    const mail = document.getElementById("mail").value;
+    const telefono = document.getElementById("telefono").value;
+    const rubro = document.getElementById("rubro").value;
+    
+    const marketingFee = parseFloat(document.getElementById("marketing").value);
     const formasPago = {};
+    
     document.querySelectorAll(".parametro").forEach((row) => {
       const label = row.querySelector(".label").value.trim();
       const coef = row.querySelector(".coef").value.trim();
@@ -239,9 +270,7 @@ window.addEventListener("DOMContentLoaded", () => {
         formasPago[label] = { label, coef: parseFloat(coef) };
       }
     });
-    const marketingFee = parseFloat(document.getElementById("marketing").value);
-    const vencimiento = document.getElementById("vencimiento").value;
-
+    
     const estado = document.getElementById("estadoCotizacion");
     const btnCotizar = document.getElementById("btnCotizar");
     estado.style.color = "#0d3a5e";
@@ -251,7 +280,7 @@ window.addEventListener("DOMContentLoaded", () => {
     fetch("/cotizar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ codigos, cliente, vencimiento, formas_pago: formasPago, marketing_fee: marketingFee })
+      body: JSON.stringify({ codigos, cliente, vencimiento, mail, telefono, rubro, formas_pago: formasPago, marketing_fee: marketingFee })
     })
       .then(res => {
         if (!res.ok) throw new Error("Error en la respuesta del servidor");
@@ -259,12 +288,7 @@ window.addEventListener("DOMContentLoaded", () => {
       })
       .then(blob => {
         const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "cotizacion_kitchen_tools.pdf";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
+        window.open(url, "_blank");
         estado.style.color = "green";
         estado.textContent = "✅ Cotización generada con éxito.";
       })
@@ -280,4 +304,5 @@ window.addEventListener("DOMContentLoaded", () => {
 });
 </script>
 </body>
+
 </html>
