@@ -1,3 +1,4 @@
+productos.json
 /build/
 /dist/
 *.spec
@@ -11,4 +12,3 @@ Thumbs.db
 *.log
 credentials.json
 .env
-productos.json

@@ -3,6 +3,8 @@ import threading
 from datetime import datetime
 from products.updater import actualizar_lista_productos
 
+already_updated_at_night = False
+
 def dentro_del_horario():
     hora = datetime.now().hour
     return hora >= 21 or hora < 4

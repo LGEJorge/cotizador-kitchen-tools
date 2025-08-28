@@ -109,9 +109,6 @@ def cotizar():
         for codigo in codigos:
             prod = obtener_datos_producto(codigo)
 
-            # MUESTRO EL PRODUCTO PARA VERIFICAR QUE LLEGA
-            print(f"{prod}")
-
             if prod:
                 productos.append(prod)
 
@@ -211,4 +208,5 @@ def home():
 if __name__ == "__main__":
     cargar_productos()
     iniciar_scheduler()
-    app.run(host="0.0.0.0", debug=False)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
