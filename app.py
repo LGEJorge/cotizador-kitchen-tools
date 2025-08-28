@@ -31,7 +31,7 @@ PARAMS_FILE = os.path.join(os.path.abspath(os.path.dirname(__file__)), "parametr
 # Le aviso al OAuth que estoy en entorno de desarrollo
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
-flow = Flow.from_client_secrets_file(
+flow = Flow.from_client_config(
     {
         "web": {
             "client_id": os.environ["GOOGLE_CLIENT_ID"],
@@ -42,8 +42,8 @@ flow = Flow.from_client_secrets_file(
             "redirect_uris": [os.environ["REDIRECT_URI"]]
         }
     },
-    scopes=['https://www.googleapis.com/auth/gmail.send'],
-    redirect_uri= os.environ.get("REDIRECT_URI")
+    scopes=["https://www.googleapis.com/auth/gmail.send"],
+    redirect_uri=os.environ["REDIRECT_URI"]
 )
 
 def buscar_imagen_base64(codigo):
