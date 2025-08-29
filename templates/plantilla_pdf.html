@@ -89,7 +89,7 @@
 
   {% for p in productos %}
     <div class="producto">
-      <img src="data:image/jpeg;base64,{{ p.imagen_b64 }}">
+      <img src="{{ p.imagen_url }}">
       <div class="detalle">
         <h2>{{ p.nombre }}</h2>
         <p>Código: {{ p.codigo }}</p>

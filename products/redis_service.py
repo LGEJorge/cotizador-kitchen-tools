@@ -47,7 +47,8 @@ def cargar_token():
     if not token_json:
         return None
 
-    credentials = Credentials.from_authorized_user_info(json.loads(token_json),SCOPES)
+    credentials = Credentials.from_authorized_user_info(
+        json.loads(token_json),SCOPES)
 
     if credentials.expired and credentials.refresh_token:
         credentials.refresh(Request())

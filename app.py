@@ -10,14 +10,13 @@ except:
 # Importo librería de Gooogle Auth
 from google_auth_oauthlib.flow import Flow
 
-from products.products_loader import cargar_productos
-from products.updater import actualizar_lista_productos
+from products.products_loader import cargar_productos, get_producto_por_codigo
 from products.scheduler import iniciar_scheduler
 from utils.price_formater import formatear_precio
 from utils.gmail_service import enviar_cotizacion
 from utils.perfit_service import cargar_contacto_prefit
-from products.get_product import obtener_datos_producto
 from products.redis_service import guardar_parametros, cargar_parametros, guardar_token
+from products.drive_service import crear_drive_service, obtener_url_imagen_por_sku
 
 from config import AppState
 
@@ -37,15 +36,6 @@ PARAMS_FILE = os.path.join(os.path.abspath(os.path.dirname(__file__)), "parametr
 
 # Le aviso al OAuth que estoy en entorno de desarrollo
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
-
-def buscar_imagen_base64(codigo):
-    extensiones = [".jpg", ".png"]
-    for ext in extensiones:
-        ruta = os.path.join(IMG_FOLDER, f"{codigo}{ext}")
-        if os.path.exists(ruta):
-            with open(ruta, "rb") as f:
-                return base64.b64encode(f.read()).decode("utf-8")
-    return None
 
 def formatear_cuota(total, cuotas):
     cuota = total / cuotas
@@ -109,7 +99,7 @@ def cotizar():
         productos = []
 
         for codigo in codigos:
-            prod = obtener_datos_producto(codigo)
+            prod = get_producto_por_codigo(codigo)
 
             if prod:
                 productos.append(prod)
@@ -117,6 +107,11 @@ def cotizar():
     with open(LOGO_PATH, "rb") as f:
         logo_b64 = base64.b64encode(f.read()).decode("utf-8")
 
+    try:
+        drive_service = crear_drive_service()
+    except Exception as e:
+        print(f"{e}")
+        
     for p in productos:
         precios = []
         for clave, info in formas_pago.items():
@@ -141,7 +136,8 @@ def cotizar():
             precios.append({"label": label, "texto": texto})
 
         p["precios"] = precios
-        p["imagen_b64"] = buscar_imagen_base64(p["codigo"])
+        p["imagen_url"] = obtener_url_imagen_por_sku(drive_service, p["codigo"])
+        # p["imagen_b64"] = buscar_imagen_base64(p["codigo"])
 
     html = render_template(
         "plantilla_pdf.html",
