@@ -192,15 +192,13 @@ def forzar_actualizacion():
     with AppState.update_lock:
         if AppState.is_updating_products:
             return jsonify({"mensaje": "⚠️ Ya se está actualizando"}), 409
-        AppState.is_updating_products = True
+        AppState.is_updating_products = True # 🚩 marco que estoy actualizando
 
     try:
-        actualizar_lista_productos()
-        AppState.is_products_list_loaded = True
+        cargar_productos()
         return jsonify({"mensaje": "✅ Lista actualizada correctamente"})
     finally:
-        with AppState.update_lock:
-            AppState.is_updating_products = False
+        AppState.is_updating_products = False # ✅ Libero el flag porque ya actualice
 
 @app.route("/")
 def home():
