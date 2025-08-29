@@ -7,6 +7,10 @@ import os
 
 PARAMS_FILE = os.path.join(os.path.abspath(os.path.dirname(__file__)), "parametros.json")
 EXPIRACION_TOKEN = 30 * 24 * 60 * 60  # 30 días
+SCOPES = [
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/drive.readonly"
+]
 
 r = redis.Redis(
     host='redis-18037.crce181.sa-east-1-2.ec2.redns.redis-cloud.com',
@@ -43,10 +47,7 @@ def cargar_token():
     if not token_json:
         return None
 
-    credentials = Credentials.from_authorized_user_info(
-        json.loads(token_json),
-        ["https://www.googleapis.com/auth/gmail.send"]
-    )
+    credentials = Credentials.from_authorized_user_info(json.loads(token_json),SCOPES)
 
     if credentials.expired and credentials.refresh_token:
         credentials.refresh(Request())

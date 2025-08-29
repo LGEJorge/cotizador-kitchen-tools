@@ -38,21 +38,6 @@ PARAMS_FILE = os.path.join(os.path.abspath(os.path.dirname(__file__)), "parametr
 # Le aviso al OAuth que estoy en entorno de desarrollo
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
-flow = Flow.from_client_config(
-    {
-        "web": {
-            "client_id": os.environ["GOOGLE_CLIENT_ID"],
-            "client_secret": os.environ["GOOGLE_CLIENT_SECRET"],
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            "redirect_uris": [os.environ["REDIRECT_URI"]]
-        }
-    },
-    scopes=["https://www.googleapis.com/auth/gmail.send"],
-    redirect_uri=os.environ["REDIRECT_URI"]
-)
-
 def buscar_imagen_base64(codigo):
     extensiones = [".jpg", ".png"]
     for ext in extensiones:
@@ -68,13 +53,30 @@ def formatear_cuota(total, cuotas):
     cuota_formateada = f"{int(round(cuota)):,}".replace(",", ".")
     return f"${total_formateado} ({cuotas} x ${cuota_formateada})"
 
+flow = Flow.from_client_config(
+    {
+        "web": {
+            "client_id": os.environ["GOOGLE_CLIENT_ID"],
+            "client_secret": os.environ["GOOGLE_CLIENT_SECRET"],
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "redirect_uris": [os.environ["REDIRECT_URI"]]
+        }
+    },
+    scopes=["https://www.googleapis.com/auth/gmail.send",
+            "https://www.googleapis.com/auth/drive.readonly"
+    ],
+    redirect_uri=os.environ["REDIRECT_URI"]
+)
+
 @app.route('/authorize')
 def authorize():
     authorization_url, state = flow.authorization_url(
     access_type='offline',
     include_granted_scopes='true',
     prompt='consent'
-)
+    )
     
     return redirect(authorization_url)
 
