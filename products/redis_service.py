@@ -38,7 +38,7 @@ data = {
 parametros = json.loads(r.get('parametros'))
 
 def guardar_token(data):
-    print(f"💾 Guardando token en la nube")
+    print("💾 Guardando token en Redis")
     r.setex('token', EXPIRACION_TOKEN, json.dumps(data))
 
 def cargar_token():
@@ -47,12 +47,16 @@ def cargar_token():
     if not token_json:
         return None
 
-    credentials = Credentials.from_authorized_user_info(
-        json.loads(token_json),SCOPES)
+    credentials = Credentials.from_authorized_user_info(json.loads(token_json), SCOPES)
 
     if credentials.expired and credentials.refresh_token:
+        print("🔄 Token vencido, refrescando...")
         credentials.refresh(Request())
         guardar_token(json.loads(credentials.to_json()))
+        print("✅ Token actualizado y guardado")
+
+    if not credentials.expired:
+        print("✅ Token NO vencido...")
 
     return credentials if credentials.valid else None
 
