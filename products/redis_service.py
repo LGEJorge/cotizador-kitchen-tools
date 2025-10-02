@@ -1,6 +1,6 @@
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
-
+from datetime import datetime, timedelta
 import redis
 import json
 import os
@@ -55,8 +55,18 @@ def cargar_token():
         guardar_token(json.loads(credentials.to_json()))
         print("✅ Token actualizado y guardado")
 
+    # Si el token está por vencer en menos de 3 días
+    elif credentials.expiry and credentials.refresh_token:
+        tiempo_restante = credentials.expiry - datetime.utcnow()
+        if tiempo_restante < timedelta(days=3):
+            print(f"⏳ Token por vencer en {tiempo_restante.days} días, refrescando anticipadamente...")
+            credentials.refresh(Request())
+            guardar_token(json.loads(credentials.to_json()))
+            print("✅ Token actualizado y guardado (por anticipación)")
+
     if not credentials.expired:
         print("✅ Token NO vencido...")
+
 
     return credentials if credentials.valid else None
 

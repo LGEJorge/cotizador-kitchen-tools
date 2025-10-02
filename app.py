@@ -15,17 +15,20 @@ from utils.price_formater import formatear_precio
 from utils.gmail_service import enviar_cotizacion
 from utils.perfit_service import cargar_contacto_prefit
 from products.redis_service import guardar_parametros, cargar_parametros, guardar_token
-from products.drive_service import crear_drive_service, obtener_url_imagen_por_sku
+from products.drive_service import crear_drive_service, obtener_imagen_base64_por_sku
 
 from config import AppState
 
 from datetime import datetime, timedelta
 from weasyprint import HTML
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
 import json
 import base64
 import os
 import re
+
 
 app = Flask(__name__)
 
@@ -135,7 +138,7 @@ def cotizar():
             precios.append({"label": label, "texto": texto})
 
         p["precios"] = precios
-        p["imagen_url"] = obtener_url_imagen_por_sku(drive_service, p["codigo"])
+        p["imagen_b64"] = obtener_imagen_base64_por_sku(drive_service, p["codigo"])
         # p["imagen_b64"] = buscar_imagen_base64(p["codigo"])
 
     html = render_template(
