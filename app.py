@@ -21,14 +21,11 @@ from config import AppState
 
 from datetime import datetime, timedelta
 from weasyprint import HTML
-import logging
-logging.basicConfig(level=logging.DEBUG)
 
 import json
 import base64
 import os
 import re
-
 
 app = Flask(__name__)
 
