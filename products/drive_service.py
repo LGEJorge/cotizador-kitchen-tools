@@ -6,7 +6,7 @@ def crear_drive_service():
     return build("drive", "v3", credentials=credentials)
 
 def obtener_imagen_base64_por_sku(service, sku):
-    carpeta_id = "1NMgqDd8fzBQV1ShiUWl-waSxxPvsUAaM"
+    carpeta_id = "1-R_zY7rBbem5DmHclokxLZF-wYsdvjep"
     query = f"name = '{sku}.jpg' and '{carpeta_id}' in parents and mimeType contains 'image/' and trashed = false"
     resultados = service.files().list(q=query, fields="files(id)").execute()
     archivos = resultados.get("files", [])
