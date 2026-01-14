@@ -95,7 +95,16 @@
         <p>Código: {{ p.codigo }}</p>
         <ul>
           {% for precio in p.precios %}
-            <li><strong>{{ precio.label }}:</strong> {{ precio.texto }}</li>
+            <li>
+              <strong>{{ precio.label }}:</strong> 
+              {% if precio.tiene_descuento %}
+                <span style="text-decoration: line-through; color: #999;">{{ precio.texto_original }}</span><br>
+                <strong>{{ precio.texto_descuento }}</strong>
+                <span style="color: red; font-weight: bold;">({{ precio.descuento_porcentaje }}% OFF)</span>
+              {% else %}
+                {{ precio.texto }}
+              {% endif %}
+            </li>
           {% endfor %}
         </ul>
       </div>

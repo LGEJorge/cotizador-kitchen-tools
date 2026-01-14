@@ -142,6 +142,9 @@
       <br>
       <label for="marketing">Gasto de Marketing (%):</label>
       <input type="number" id="marketing" name="marketing" value="0">
+      <br>
+      <label for="descuento">DESCUENTO (%):</label>
+      <input type="number" id="descuento" name="descuento" value="0" min="0" max="100">
       <br><br>
       <button type="button" class="toggle-button" onclick="agregarFila()">+ Agregar Medio de Pago</button>
       <br>
@@ -261,6 +264,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const rubro = document.getElementById("rubro").value;
     
     const marketingFee = parseFloat(document.getElementById("marketing").value);
+    const descuento = parseFloat(document.getElementById("descuento").value) || 0;
     const formasPago = {};
     
     document.querySelectorAll(".parametro").forEach((row) => {
@@ -280,7 +284,7 @@ window.addEventListener("DOMContentLoaded", () => {
     fetch("/cotizar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ codigos, cliente, vencimiento, mail, telefono, rubro, formas_pago: formasPago, marketing_fee: marketingFee })
+      body: JSON.stringify({ codigos, cliente, vencimiento, mail, telefono, rubro, formas_pago: formasPago, marketing_fee: marketingFee, descuento: descuento })
     })
       .then(res => {
         if (!res.ok) throw new Error("Error en la respuesta del servidor");

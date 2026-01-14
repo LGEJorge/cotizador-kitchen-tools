@@ -90,6 +90,7 @@ def cotizar():
 
         formas_pago = request.json.get("formas_pago", {})
         marketing_fee = float(request.json.get("marketing_fee", 0.0))
+        descuento = float(request.json.get("descuento", 0.0))
 
         fecha = datetime.now()
         vencimiento_str = request.json.get("vencimiento")
@@ -101,7 +102,8 @@ def cotizar():
             prod = get_producto_por_codigo(codigo)
 
             if prod:
-                productos.append(prod)
+                # Create a copy to avoid modifying the global products list structure if it's reused
+                productos.append(prod.copy())
 
     with open(LOGO_PATH, "rb") as f:
         logo_b64 = base64.b64encode(f.read()).decode("utf-8")
@@ -117,6 +119,8 @@ def cotizar():
             label = info["label"]
             coef = float(info["coef"]) + marketing_fee
             precio_base = p["precio"]
+            
+            # Calculate price with payment method coefficient
             if coef < 0:
                 total = precio_base * (1 + coef / 100)
             else:
@@ -125,18 +129,38 @@ def cotizar():
                 except ZeroDivisionError:
                     total = precio_base
 
+            # Original price formatting
             match = re.search(r"\b(\d+)\b", label)
-            if match:
-                cuotas = int(match.group(1))
-                texto = formatear_cuota(total, cuotas)
-            else:
-                texto = f"${formatear_precio(total)}"
+            
+            def get_formatted_text(val, cuotas_match=None):
+                if cuotas_match:
+                    cuotas = int(cuotas_match.group(1))
+                    return formatear_cuota(val, cuotas)
+                else:
+                    return f"${formatear_precio(val)}"
 
-            precios.append({"label": label, "texto": texto})
+            texto_original = get_formatted_text(total, match)
+            
+            precio_item = {
+                "label": label,
+                "texto": texto_original,
+                "tiene_descuento": False
+            }
+
+            # Discount logic
+            if descuento > 0:
+                total_con_descuento = total * (1 - descuento / 100)
+                texto_descuento = get_formatted_text(total_con_descuento, match)
+                
+                precio_item["tiene_descuento"] = True
+                precio_item["texto_original"] = texto_original
+                precio_item["texto_descuento"] = texto_descuento
+                precio_item["descuento_porcentaje"] = int(descuento)
+
+            precios.append(precio_item)
 
         p["precios"] = precios
         p["imagen_b64"] = obtener_imagen_base64_por_sku(drive_service, p["codigo"])
-        # p["imagen_b64"] = buscar_imagen_base64(p["codigo"])
 
     html = render_template(
         "plantilla_pdf.html",
