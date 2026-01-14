@@ -31,6 +31,10 @@ app = Flask(__name__)
 
 IMG_FOLDER = "static/img"
 LOGO_PATH = "logo_kitchen.png"
+RESOURCES_FOLDER = "resources"
+BILLETE_PATH = os.path.join(RESOURCES_FOLDER, "billete.png")
+TARJETAS_PATH = os.path.join(RESOURCES_FOLDER, "tarjetas.png")
+TRANSFERENCIA_PATH = os.path.join(RESOURCES_FOLDER, "transferencia.png")
 PARAMS_FILE = os.path.join(os.path.abspath(os.path.dirname(__file__)), "parametros.json")
 
 # Le aviso al OAuth que estoy en entorno de desarrollo
@@ -108,6 +112,17 @@ def cotizar():
     with open(LOGO_PATH, "rb") as f:
         logo_b64 = base64.b64encode(f.read()).decode("utf-8")
 
+    def get_b64_image(path):
+        try:
+            with open(path, "rb") as f:
+                return base64.b64encode(f.read()).decode("utf-8")
+        except FileNotFoundError:
+            return ""
+
+    billete_b64 = get_b64_image(BILLETE_PATH)
+    tarjetas_b64 = get_b64_image(TARJETAS_PATH)
+    transferencia_b64 = get_b64_image(TRANSFERENCIA_PATH)
+
     try:
         drive_service = crear_drive_service()
     except Exception as e:
@@ -132,29 +147,48 @@ def cotizar():
             # Original price formatting
             match = re.search(r"\b(\d+)\b", label)
             
-            def get_formatted_text(val, cuotas_match=None):
+            # Helper to get price parts
+            def get_price_parts(val, cuotas_match=None):
+                val_fmt = f"${formatear_precio(val)}"
+                detalle = ""
                 if cuotas_match:
                     cuotas = int(cuotas_match.group(1))
-                    return formatear_cuota(val, cuotas)
-                else:
-                    return f"${formatear_precio(val)}"
+                    cuota_val = val / cuotas
+                    cuota_fmt = f"${formatear_precio(cuota_val)}"
+                    detalle = f"({cuotas} x {cuota_fmt})"
+                return val_fmt, detalle
 
-            texto_original = get_formatted_text(total, match)
-            
+            precio_fmt_orig, detalle_orig = get_price_parts(total, match)
+            texto_completo_orig = f"{precio_fmt_orig} {detalle_orig}".strip()
+
             precio_item = {
                 "label": label,
-                "texto": texto_original,
-                "tiene_descuento": False
+                "texto_completo": texto_completo_orig, # Backwards compatibility / ease of use
+                "precio_principal": precio_fmt_orig,
+                "precio_secundario": detalle_orig,
+                "tiene_descuento": False,
+                "tipo_pago": "tarjeta" if "Tarjeta" in label else "otro" 
             }
+            
+            # Simple heuristic for icon type
+            if "Transferencia" in label:
+                precio_item["tipo_pago"] = "transferencia"
+            elif "Efectivo" in label:
+                precio_item["tipo_pago"] = "efectivo"
+            elif "Tarjeta" in label:
+                precio_item["tipo_pago"] = "tarjeta"
+            else:
+                 precio_item["tipo_pago"] = "otro"
 
             # Discount logic
             if descuento > 0:
                 total_con_descuento = total * (1 - descuento / 100)
-                texto_descuento = get_formatted_text(total_con_descuento, match)
+                precio_fmt_desc, detalle_desc = get_price_parts(total_con_descuento, match)
                 
                 precio_item["tiene_descuento"] = True
-                precio_item["texto_original"] = texto_original
-                precio_item["texto_descuento"] = texto_descuento
+                precio_item["precio_principal_original"] = precio_fmt_orig 
+                precio_item["precio_principal_descuento"] = precio_fmt_desc
+                precio_item["precio_secundario_descuento"] = detalle_desc
                 precio_item["descuento_porcentaje"] = int(descuento)
 
             precios.append(precio_item)
@@ -168,7 +202,10 @@ def cotizar():
         fecha=fecha.strftime('%d/%m/%Y'),
         vencimiento=vencimiento.strftime('%d/%m/%Y'),
         productos=productos,
-        logo_b64=logo_b64
+        logo_b64=logo_b64,
+        billete_b64=billete_b64,
+        tarjetas_b64=tarjetas_b64,
+        transferencia_b64=transferencia_b64
     )
 
     output_path = "cotizacion_temp.pdf"
@@ -214,7 +251,7 @@ def forzar_actualizacion():
         AppState.is_updating_products = True # 🚩 marco que estoy actualizando
 
     try:
-        cargar_productos()
+        cargar_productos(force_update=True)
         return jsonify({"mensaje": "✅ Lista actualizada correctamente"})
     finally:
         AppState.is_updating_products = False # ✅ Libero el flag porque ya actualice

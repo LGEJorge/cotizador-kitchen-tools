@@ -18,6 +18,7 @@ def obtener_imagen_base64_por_sku(service, sku):
         from io import BytesIO
         from googleapiclient.http import MediaIoBaseDownload
         import base64
+        from PIL import Image, ImageChops
 
         fh = BytesIO()
         downloader = MediaIoBaseDownload(fh, request)
@@ -25,7 +26,34 @@ def obtener_imagen_base64_por_sku(service, sku):
         while not done:
             status, done = downloader.next_chunk()
 
-        imagen_b64 = base64.b64encode(fh.getvalue()).decode("utf-8")
+        # Process image with PIL to crop white borders
+        try:
+            fh.seek(0)
+            img = Image.open(fh)
+            
+            # Ensure RGB to avoid issues with transparency or other modes when checking for white
+            img = img.convert("RGB")
+            
+            def recortar_imagen(im):
+                bg = Image.new(im.mode, im.size, (255, 255, 255))
+                diff = ImageChops.difference(im, bg)
+                diff = ImageChops.add(diff, diff, 2.0, -100)
+                bbox = diff.getbbox()
+                if bbox:
+                    return im.crop(bbox)
+                return im
+
+            img_cropped = recortar_imagen(img)
+            
+            # Save cropped image to buffer
+            buffered = BytesIO()
+            img_cropped.save(buffered, format="JPEG")
+            imagen_b64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+        except Exception as e:
+            print(f"Error procesando imagen para SKU {sku}: {e}")
+            # Fallback to original if PIL fails
+            imagen_b64 = base64.b64encode(fh.getvalue()).decode("utf-8")
+
         return f"data:image/jpeg;base64,{imagen_b64}"
 
     return None
