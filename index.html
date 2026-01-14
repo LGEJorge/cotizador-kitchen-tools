@@ -115,6 +115,9 @@
     <label for="codigos">Códigos de Producto (separados por coma):</label>
     <input type="text" id="codigos" name="codigos" required>
 
+    <label for="descuento">DESCUENTO (%):</label>
+    <input type="number" id="descuento" name="descuento" value="0" min="0" max="100">
+
     <label for="mail">Correo electrónico:</label>
     <input type="email" id="mail" name="mail">
     
@@ -143,9 +146,7 @@
       <label for="marketing">Gasto de Marketing (%):</label>
       <input type="number" id="marketing" name="marketing" value="0">
       <br>
-      <label for="descuento">DESCUENTO (%):</label>
-      <input type="number" id="descuento" name="descuento" value="0" min="0" max="100">
-      <br><br>
+
       <button type="button" class="toggle-button" onclick="agregarFila()">+ Agregar Medio de Pago</button>
       <br>
       <button type="button" class="toggle-button" onclick="guardarParametrosServidor()">💾 Guardar Parámetros</button>
